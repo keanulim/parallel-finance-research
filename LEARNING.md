@@ -27,3 +27,28 @@ material later.
   numbers. Only surfaced by actually running the pipeline live against real
   Gemini output and reading what it said, not by unit-testing the math in
   isolation. Fix: `dropna(subset=["Close"])` right after the fetch.
+- Added per-node failure handling (retry / containment / timeout / systemic-
+  failure detection) to the graph, then found two more real bugs *while
+  testing that work*, both concurrency-specific — the kind that only show up
+  once things genuinely run in parallel, not in a single-threaded script:
+  - `concurrent.futures.ThreadPoolExecutor` registers a global `atexit` hook
+    that joins **every** worker thread it has ever created, from every
+    executor, before the interpreter exits — not just threads still inside a
+    `with` block. A timed-out node's worker thread can't be force-killed
+    (Python threads never can be), only abandoned, so a normal script exit
+    hung waiting for it anyway, even after the script's own logic had
+    already finished and printed its output. Fix: `os._exit()` after
+    flushing stdout/stderr, skipping the graceful-shutdown thread-join
+    entirely. Caught by literally running the timeout test and watching the
+    process not exit — the "it timed out correctly" log line printed, and
+    the process still didn't return.
+  - A single shared `genai.Client` instance, called from 4 concurrent
+    threads, intermittently raised `RuntimeError("Cannot send a request, as
+    the client has been closed")` — httpx's guard against reusing a client
+    after `.close()`, which `genai.Client.__del__` calls on garbage
+    collection. Rather than dig into why concurrent use was triggering that,
+    switched to one `genai.Client` per thread (`threading.local()`) — it
+    sidesteps the question of whether the SDK is safe to share across
+    threads instead of relying on undocumented internals. Confirmed fixed
+    with repeated live runs, since the original failure wasn't consistently
+    reproducible.
