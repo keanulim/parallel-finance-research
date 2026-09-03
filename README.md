@@ -5,7 +5,7 @@ Agents project: four specialist research agents (technical, fundamentals,
 sentiment, risk) plus an aggregator, orchestrated with LangGraph so the four
 specialists run concurrently and fan back in to the aggregator once all four
 finish. Containerized and deployed to a local Kubernetes cluster (`kind`).
-Phase 1 (Terraform/AWS) is still ahead — nothing here touches the cloud yet.
+Phase 1 (Terraform/AWS foundation) in progress — see `terraform/`.
 
 ## Setup
 
@@ -56,6 +56,21 @@ cluster's node runs its own isolated containerd, so a `docker build` on the
 host isn't visible inside it without this step (or, later, a real registry
 push in Phase 1+).
 
+## AWS foundation (Terraform)
+
+Requires an IAM user's credentials via `aws configure` — never the root
+account. `terraform/bootstrap` creates the S3 bucket + DynamoDB table that
+later Terraform configs use as their remote state backend; it necessarily
+runs with local state itself (see LEARNING.md for why).
+
+```bash
+cd terraform/bootstrap
+cp terraform.tfvars.example terraform.tfvars  # edit: pick a globally-unique bucket name
+terraform init
+terraform plan
+terraform apply
+```
+
 ## Structure
 
 - `agents/technical.py` — price action, moving averages, momentum, volatility
@@ -75,11 +90,13 @@ push in Phase 1+).
   never at build time)
 - `k8s/deployment.yaml` / `k8s/service.yaml` — Deployment (1 replica,
   liveness/readiness probes on `/healthz`) + ClusterIP Service
+- `terraform/bootstrap/` — S3 bucket (versioned, encrypted, public access
+  blocked, `prevent_destroy`) + DynamoDB lock table for remote state
 
 ## Next steps (per the plan)
 
-- Phase 1: Terraform foundation — S3 + DynamoDB remote state, then a VPC
-  module. Nothing here depends on that existing yet.
+- Finish Phase 1: point a real config's backend at the bootstrap output,
+  then build the VPC module (2 AZs, public+private subnets, IGW, NAT gateway).
 - Phase 3: CI/CD — lint/test, build + push the image, `terraform plan` on PRs.
 - Phase 4: ephemeral PR preview environments (the centerpiece) — this
   Deployment/Service pair is the template that gets templated per-branch.

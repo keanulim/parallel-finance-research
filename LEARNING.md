@@ -3,6 +3,29 @@
 Kept per the plan's habit: what broke, what I learned, doubles as interview
 material later.
 
+## Phase 1 (Terraform foundation)
+
+- `terraform` isn't in Homebrew core anymore — HashiCorp pulled it over a
+  licensing dispute a while back. It's only in `hashicorp/tap/terraform` now.
+- `brew install awscli` hit the *exact same* `pyexpat`/`libexpat` symbol
+  mismatch from Phase 0's venv problem — Homebrew's `python@3.14` bottle on
+  this machine, again. AWS CLI v2 doesn't help here since it's not
+  pip-installable, so the earlier "just use `~/.local/bin/python3.12`" fix
+  didn't directly apply. Fix: isolated venv (`~/.local/bin/python3.12 -m
+  venv ~/.local/aws-cli-venv`), pip-installed AWS CLI *v1* into it (still
+  fine for `configure`/`sts get-caller-identity`), symlinked its `aws` binary
+  into `~/.local/bin` — which already sits before `/opt/homebrew/bin` in
+  PATH, so it shadows the broken one without touching Homebrew's install.
+  Tried a plain global `pip install --user awscli` first; that Python is
+  `uv`-managed and correctly refused (PEP 668 externally-managed-environment)
+  rather than risk breaking other tooling with `--break-system-packages`.
+- Remote state has a real chicken-and-egg shape: you can't store Terraform's
+  state in S3 before the S3 bucket exists, and you can't create the bucket
+  with Terraform without state going somewhere. Resolved by bootstrapping
+  with plain local state once (`terraform/bootstrap/`), then pointing the
+  *next* config's backend at what that created — not an actual loop, just a
+  one-time ordering constraint.
+
 ## Phase 2 (containerize)
 
 - No Docker on this machine at all. Installed Colima (`brew install colima
