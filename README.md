@@ -22,6 +22,13 @@ cp .env.example .env  # fill in GOOGLE_API_KEY
 python main.py AAPL
 ```
 
+## Run in Docker
+
+```bash
+docker build -t finance-research-agents .
+docker run --rm --env-file .env finance-research-agents AAPL
+```
+
 ## Structure
 
 - `agents/technical.py` — price action, moving averages, momentum, volatility
@@ -30,10 +37,15 @@ python main.py AAPL
 - `agents/risk.py` — drawdown, leverage, volatility (downside-only lens)
 - `agents/aggregator.py` — synthesizes the four reports into one note
 - `data/market_data.py` — yfinance wrappers (no API key required)
-- `graph.py` — LangGraph `StateGraph`: fan-out to the 4 specialists, fan-in to the aggregator
+- `graph.py` — LangGraph `StateGraph`: fan-out to the 4 specialists, fan-in to
+  the aggregator, per-node timeout/failure containment, systemic-failure
+  detection
 - `main.py` — CLI entrypoint, invokes the compiled graph
+- `Dockerfile` / `.dockerignore` — containerizes the app (Python 3.12-slim,
+  no secrets baked in — `GOOGLE_API_KEY` is injected at `docker run` time)
 
 ## Next steps (per the plan)
 
-- Add failure/timeout handling per node (one bad agent shouldn't kill the run).
-- Once the logic is solid, containerize and move to the infra phases.
+- Move to Phase 1 (Terraform foundation) — S3 + DynamoDB remote state, then a
+  VPC module.
+- Eventually deploy this image to a local `kind`/`minikube` cluster (Phase 2).

@@ -3,6 +3,32 @@
 Kept per the plan's habit: what broke, what I learned, doubles as interview
 material later.
 
+## Phase 2 (containerize)
+
+- No Docker on this machine at all. Installed Colima (`brew install colima
+  docker`) instead of Docker Desktop — lightweight, CLI-only, no GUI app, no
+  admin-password installer step. `colima start` boots a small Linux VM (macOS
+  can't run Linux containers natively — there's no way around a VM boundary
+  somewhere) and wires up the Docker socket to it.
+- Fresh install still failed on the very first `docker run`: `error getting
+  credentials - err: exec: "docker-credential-desktop": executable file not
+  found`. `~/.docker/config.json` had `"credsStore": "desktop"` pointing at a
+  Docker-Desktop-only credential helper binary that doesn't exist when you're
+  not running Desktop. Fix: removed that key from the config — not needed
+  for pulling public images anyway.
+- Layer-caching order matters more than it looks: `COPY requirements.txt .`
+  + `pip install` has to come *before* `COPY . .`, not after. Docker caches
+  each instruction as a layer and invalidates everything from the first
+  changed instruction onward. Copy-everything-then-install would mean any
+  code edit (even a comment in README.md) reinstalls every dependency from
+  scratch on every build.
+- Verified the built image for real, not just "it built": ran it against a
+  live ticker (NVDA) with `--env-file .env` (so the key never gets typed or
+  echoed anywhere, including by me) and got a complete 4-agent report with
+  real disagreement between the fundamentals and risk agents, same as the
+  bare-metal run. Image is 138MB unique content / 636MB total disk usage
+  including shared base layers.
+
 ## Phase 0
 
 - Homebrew's python3.11 and python3.14 both have a broken `ensurepip` on this
