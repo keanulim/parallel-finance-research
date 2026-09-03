@@ -5,6 +5,8 @@ import yfinance as yf
 
 def get_price_history(ticker: str, period: str = "6mo"):
     hist = yf.Ticker(ticker).history(period=period)
+    # Today's row can be present with NaN OHLC before the market closes.
+    hist = hist.dropna(subset=["Close"])
     if hist.empty:
         raise ValueError(f"No price history for {ticker}")
     return hist
