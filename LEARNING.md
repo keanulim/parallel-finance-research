@@ -25,6 +25,34 @@ material later.
   with plain local state once (`terraform/bootstrap/`), then pointing the
   *next* config's backend at what that created — not an actual loop, just a
   one-time ordering constraint.
+- `aws` CLI's configured default region (`us-west-1`) didn't match the
+  bootstrap config's default (`us-east-1`) — first `aws dynamodb
+  describe-table` call came back `ResourceNotFoundException` purely because
+  it silently checked the wrong region. Not a real bug, but exactly the kind
+  of false alarm this mismatch causes; worth remembering before assuming
+  something's actually broken.
+- Decided *not* to migrate the already-applied bootstrap bucket/table from
+  us-east-1 to us-west-1 to match — a state bucket's region is functionally
+  irrelevant (nothing but Terraform itself ever touches it), so the simpler
+  fix was pointing the VPC module's provider at us-west-1 instead and
+  leaving bootstrap where it is. Backend `region` and provider `region` are
+  independent settings and don't need to match.
+- Hand-wrote the VPC module instead of using the community
+  `terraform-aws-modules/vpc` registry module, on purpose — the point right
+  now is understanding subnets/route-tables/IGW/NAT as primitives, which a
+  module would hide. `terraform plan` resolved real AZs via the
+  `aws_availability_zones` data source instead of hardcoded names, and it's
+  a good thing it did: this account's `us-west-1` only has `1a`/`1c`, no
+  `1b`. Hardcoding `us-west-1b` would have failed outright.
+- Terraform's `backend {}` block can't reference variables — bucket/region/
+  table name have to be literal (or passed via `-backend-config` flags).
+  Real limitation, not a style choice: the backend has to be resolved before
+  Terraform can evaluate anything else, including variables.
+- Validated the VPC module fully (`fmt`/`init`/`validate`/`plan` all clean,
+  14 resources, backend connects) but did not `apply` — stopped deliberately
+  before creating the NAT Gateway (real hourly cost) rather than spin up and
+  immediately tear down infrastructure just to prove it works. Applying is
+  the natural next session's first step.
 
 ## Phase 2 (containerize)
 
