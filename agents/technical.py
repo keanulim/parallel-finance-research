@@ -1,4 +1,4 @@
-from agents.base import AgentResult, ask_claude
+from agents.base import AgentResult, ask_gemini
 from agents.parsing import RESPONSE_FORMAT_INSTRUCTIONS, parse_agent_response
 from data.market_data import get_price_history
 
@@ -30,5 +30,5 @@ Annualized volatility: {volatility:.1f}%
 Give a short technical read (3-4 sentences), then the structured block.
 {RESPONSE_FORMAT_INSTRUCTIONS}"""
 
-    text = ask_claude(SYSTEM, prompt)
+    text = ask_gemini(SYSTEM, prompt)
     return parse_agent_response("technical", ticker, text)

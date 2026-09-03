@@ -1,4 +1,4 @@
-from agents.base import AgentResult, ask_claude
+from agents.base import AgentResult, ask_gemini
 from agents.parsing import RESPONSE_FORMAT_INSTRUCTIONS, parse_agent_response
 from data.market_data import get_fundamentals, get_price_history
 
@@ -29,5 +29,5 @@ Give a short risk read (3-4 sentences), then the structured block.
 For this agent, RATING means: bullish = low risk, bearish = high risk.
 {RESPONSE_FORMAT_INSTRUCTIONS}"""
 
-    text = ask_claude(SYSTEM, prompt)
+    text = ask_gemini(SYSTEM, prompt)
     return parse_agent_response("risk", ticker, text)

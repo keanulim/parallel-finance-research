@@ -1,4 +1,4 @@
-from agents.base import AgentResult, ask_claude
+from agents.base import AgentResult, ask_gemini
 from agents.parsing import RESPONSE_FORMAT_INSTRUCTIONS, parse_agent_response
 from data.market_data import get_recent_news
 
@@ -25,5 +25,5 @@ Recent headlines:
 Give a short sentiment read (3-4 sentences), then the structured block.
 {RESPONSE_FORMAT_INSTRUCTIONS}"""
 
-    text = ask_claude(SYSTEM, prompt)
+    text = ask_gemini(SYSTEM, prompt)
     return parse_agent_response("sentiment", ticker, text)

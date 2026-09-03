@@ -1,4 +1,4 @@
-from agents.base import AgentResult, ask_claude
+from agents.base import AgentResult, ask_gemini
 
 SYSTEM = """You are the lead analyst on a finance-research team. You receive
 independent reports from four specialist agents (technical, fundamentals,
@@ -22,4 +22,4 @@ Write a final research note with:
 3. Any notable disagreement between agents.
 4. Key risks to the thesis."""
 
-    return ask_claude(SYSTEM, prompt)
+    return ask_gemini(SYSTEM, prompt)
