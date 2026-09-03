@@ -1,7 +1,7 @@
-"""Phase 0: run the finance-research agents sequentially for one ticker.
+"""Run the finance-research agent graph for one ticker.
 
-No orchestration framework, no infra — just the agent logic, to be validated
-before Phase 1 (Terraform) and later parallelized with LangGraph.
+Orchestration is LangGraph: the four specialists fan out from START and run
+concurrently, then fan back in to the aggregator once all four finish.
 """
 
 import sys
@@ -9,39 +9,35 @@ import time
 
 from dotenv import load_dotenv
 
-from agents import aggregator, fundamentals, risk, sentiment, technical
+from graph import build_graph
 
 load_dotenv()
 
-AGENTS = [technical, fundamentals, sentiment, risk]
+app = build_graph()
+
+AGENT_ORDER = ["technical", "fundamentals", "sentiment", "risk"]
 
 
 def run_research(ticker: str) -> None:
     ticker = ticker.upper()
-    results = []
 
-    for agent in AGENTS:
-        name = agent.__name__.rsplit(".", 1)[-1]
-        print(f"[{name}] running...", file=sys.stderr)
-        start = time.time()
-        result = agent.run(ticker)
-        elapsed = time.time() - start
-        print(f"[{name}] done in {elapsed:.1f}s -> {result.rating} ({result.confidence})", file=sys.stderr)
-        results.append(result)
-
-    print(f"\n[aggregator] synthesizing...", file=sys.stderr)
-    final_report = aggregator.run(ticker, results)
+    print("[graph] running 4 agents in parallel...", file=sys.stderr)
+    start = time.time()
+    state = app.invoke({"ticker": ticker})
+    elapsed = time.time() - start
+    print(f"[graph] all agents + aggregator done in {elapsed:.1f}s", file=sys.stderr)
 
     print("\n" + "=" * 70)
     print(f"RESEARCH REPORT: {ticker}")
     print("=" * 70)
-    for r in results:
+    for name in AGENT_ORDER:
+        r = state[name]
         print(f"\n## {r.agent.upper()} ({r.rating}, confidence {r.confidence})")
         print(r.summary)
     print("\n" + "=" * 70)
     print("FINAL SYNTHESIS")
     print("=" * 70)
-    print(final_report)
+    print(state["final_report"])
 
 
 if __name__ == "__main__":
