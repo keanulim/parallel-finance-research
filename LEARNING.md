@@ -28,6 +28,39 @@ material later.
   real disagreement between the fundamentals and risk agents, same as the
   bare-metal run. Image is 138MB unique content / 636MB total disk usage
   including shared base layers.
+- Proved the layer-caching claim empirically rather than trusting the docs:
+  rebuilding unchanged took 2.53s (`RUN pip install` showed `Using cache`);
+  touching `requirements.txt` and rebuilding took 43.6s (full reinstall,
+  every layer from `COPY requirements.txt .` onward invalidated). A cache
+  miss invalidates that layer *and every layer after it in the file*, not
+  just the changed instruction — which is the actual reason ordering matters,
+  not just "put small things first."
+- The app was a one-shot CLI (`main.py`, prints a report, exits), but the
+  plan's Phase 2 deliverable is specifically a Deployment + Service —
+  Kubernetes Deployments expect a long-running process; a container that
+  exits looks like a crash and gets restarted (`CrashLoopBackOff`). Added
+  `api.py` (FastAPI: `/research/{ticker}`, `/healthz`) as what actually gets
+  containerized/deployed; `main.py` stays as a separate local-dev-only path,
+  not something the Docker image runs anymore.
+- `kind create cluster` runs the entire "Kubernetes node" as one Docker
+  container (`kindest/node`) with its own kubelet/containerd inside it —
+  confirmed by `docker ps` showing it directly. That node's containerd is
+  isolated from the host's Docker/Colima image store, so a locally-built
+  image is invisible inside the cluster until `kind load docker-image`
+  copies it in — the local-dev substitute for a registry push.
+- `imagePullPolicy` defaults to `Always` for a `:latest` tag, which would
+  make the pod try to *pull* the image from a registry instead of using the
+  one just loaded via `kind load` — and fail, since it was never pushed
+  anywhere. Needed `imagePullPolicy: IfNotPresent` explicitly.
+- `kubectl get ... -l app=finance-agents` only returned the Pod, not the
+  Deployment or Service — because that label lives on the pod template
+  (what gets stamped onto pods the Deployment creates) and in the
+  selectors, not on the Deployment/Service objects' own metadata. Small
+  mixup, but a real one, not just a hypothetical gotcha to watch for.
+- Verified past "it built" and "kubectl says Running" to an actual request:
+  `kubectl port-forward svc/finance-agents 8000:8000` then `curl
+  localhost:8000/research/TSLA` returned a live 4-agent report through the
+  real Service, not a mock.
 
 ## Phase 0
 
