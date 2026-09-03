@@ -16,3 +16,14 @@ material later.
   the specialists take longer individually (network I/O per node), but they
   still overlap — a 4-node run came back in ~2s once the aggregator's
   dependency wait (fan-in) was accounted for, not ~5s+ of serial execution.
+- Switched providers from Claude to Gemini (`google-genai`, `gemini-3.7-flash`)
+  to reuse a key already on hand — matched the pattern already proven in the
+  THP-RAG project rather than inventing a new one.
+- `yfinance`'s `.history()` includes a row for the *current* trading day even
+  before the market closes, with `Close`/`High`/`Low` all `NaN`. That NaN
+  silently propagated through every derived stat (SMA, 6-month return,
+  drawdown) — the technical agent's LLM output reported "price data
+  unavailable" even though the code was, on the surface, computing real
+  numbers. Only surfaced by actually running the pipeline live against real
+  Gemini output and reading what it said, not by unit-testing the math in
+  isolation. Fix: `dropna(subset=["Close"])` right after the fetch.
